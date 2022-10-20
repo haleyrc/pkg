@@ -6,9 +6,16 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-
-	"github.com/haleyrc/cheevos/internal/lib/db"
 )
+
+type Row interface {
+	Scan(args ...interface{}) error
+}
+
+type Tx interface {
+	Exec(ctx context.Context, query string, args ...interface{}) error
+	QueryRow(ctx context.Context, query string, args ...interface{}) Row
+}
 
 func Connect(ctx context.Context, path string) (*Database, error) {
 	conn, err := sqlx.ConnectContext(ctx, "postgres", path)
@@ -23,13 +30,13 @@ type Database struct {
 	conn *sqlx.DB
 }
 
-func (db *Database) WithTx(ctx context.Context, f func(ctx context.Context, tx db.Tx) error) error {
+func (db *Database) WithTx(ctx context.Context, f func(ctx context.Context, tx Tx) error) error {
 	tx, err := db.conn.Beginx()
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
 	}
 
-	if err := f(ctx, Tx{tx: tx}); err != nil {
+	if err := f(ctx, ttx{tx: tx}); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("transaction failed: %w", err)
 	}
@@ -49,11 +56,11 @@ func (db *Database) Ping() error {
 	return nil
 }
 
-type Tx struct {
+type ttx struct {
 	tx *sqlx.Tx
 }
 
-func (tx Tx) Exec(ctx context.Context, query string, args ...interface{}) error {
+func (tx ttx) Exec(ctx context.Context, query string, args ...interface{}) error {
 	_, err := tx.tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("exec failed: %w", err)
@@ -61,6 +68,6 @@ func (tx Tx) Exec(ctx context.Context, query string, args ...interface{}) error 
 	return nil
 }
 
-func (tx Tx) QueryRow(ctx context.Context, query string, args ...interface{}) db.Row {
+func (tx ttx) QueryRow(ctx context.Context, query string, args ...interface{}) Row {
 	return tx.tx.QueryRowContext(ctx, query, args...)
 }
