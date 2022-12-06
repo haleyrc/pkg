@@ -23,7 +23,7 @@ type Time struct {
 }
 
 func (t Time) Add(d Duration) Time {
-	return Time{t: t.t.Add(d.d)}
+	return Time{t: t.t.Add(d.d).Truncate(time.Second)}
 }
 
 func (t Time) Before(other Time) bool {
@@ -48,7 +48,7 @@ func (t *Time) Scan(value interface{}) error {
 	}
 	switch value := value.(type) {
 	case time.Time:
-		t.t = value
+		t.t = value.Truncate(time.Second)
 	default:
 		return fmt.Errorf("unsupported data type: %T", value)
 	}
@@ -60,7 +60,7 @@ func (t Time) String() string {
 }
 
 func (t Time) Sub(d Duration) Time {
-	return Time{t: t.t.Add(-d.d)}
+	return Time{t: t.t.Add(-d.d).Truncate(time.Second)}
 }
 
 func (t Time) Value() (driver.Value, error) {
@@ -82,5 +82,5 @@ func Unfreeze() {
 }
 
 func Now() Time {
-	return Time{t: nowFn()}
+	return Time{t: nowFn().Truncate(time.Second)}
 }
