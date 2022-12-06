@@ -63,6 +63,10 @@ func (t Time) Sub(d Duration) Time {
 	return Time{t: t.t.Add(-d.d).Truncate(time.Second)}
 }
 
+func (t Time) UTC() Time {
+	return Time{t: t.t.UTC().Truncate(time.Second)}
+}
+
 func (t Time) Value() (driver.Value, error) {
 	return t.t, nil
 }
